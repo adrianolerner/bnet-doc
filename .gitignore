@@ -1,0 +1,5 @@
+.env
+.DS_Store
+
+# Data and Uploads (must not be committed)
+uploads/

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: bnet_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-bnet_doc}
+      TZ: America/Sao_Paulo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    container_name: bnet_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - bnet_uploads:/app/uploads
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-bnet_doc}
+      - TZ=America/Sao_Paulo
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  frontend:
+    image: nginx:alpine
+    container_name: bnet_frontend
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      - TZ=America/Sao_Paulo
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  bnet_uploads:

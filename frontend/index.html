@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BNET IT Doc System</title>
+    <meta name="description" content="Sistema EAV dinâmico para gerenciar informações de TI.">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Boxicons for minimal icons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Quill.js for RichText -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Login View -->
+    <section id="login-view" class="view active">
+        <div class="login-container glass-panel">
+            <div class="login-header" style="text-align: center;">
+                <i class='bx bx-cube-alt logo-icon'></i>
+                <h2>BNET IT DOC SYSTEM</h2>
+                <p class="subtitle" id="ldap-subtitle">Autenticação (LDAP Mock)</p>
+            </div>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-user">Usuário</label>
+                    <input type="text" id="login-user" name="username" required placeholder="Ex: nome.sobrenome">
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-pass">Senha</label>
+                    <input type="password" id="login-pass" name="password" required placeholder="*********">
+                </div>
+                
+                <!-- Mock info text -->
+                <small class="mock-hint" id="ldap-mock-hint">No modo Mock, qualquer senha funciona (ex: usuarioTI).</small>
+                
+                <button type="submit" class="btn btn-primary btn-block mt-4" id="btn-login">
+                    <span>Entrar no Sistema</span>
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- App View (Dashboard) -->
+    <section id="app-view" class="view hidden layout-dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-panel">
+            <div class="brand">
+                <i class='bx bx-server'></i>
+                <h2>IT Docs</h2>
+            </div>
+            
+            <nav class="nav-menu">
+                <div class="nav-section-title">Navegação</div>
+                <a href="#" class="nav-item active" data-view="dashboard">
+                    <i class='bx bx-home-alt'></i> Dashboard
+                </a>
+                <a href="#" class="nav-item" data-view="categories-manager">
+                    <i class='bx bx-layer'></i> Categorias (EAV)
+                </a>
+                <a href="#" class="nav-item" data-view="mod-logs" onclick="app.loadModificationLogs()">
+                    <i class='bx bx-history'></i> Logs de Modificações
+                </a>
+                <a href="#" class="nav-item" id="nav-master-password" onclick="app.ui.showModal('modal-change-master-password')">
+                    <i class='bx bx-cog'></i> Mudar Senha Mestra
+                </a>
+
+                <div class="nav-section-title" style="margin-top: 2rem;">Acervo</div>
+                <a href="#" class="nav-item" data-view="reports">
+                    <i class='bx bx-file-blank'></i> Relatórios
+                </a>
+                <div class="nav-section-title mt-4">Categorias Dinâmicas</div>
+                <div id="dynamic-categories-nav">
+                    <!-- Loaded via JS -->
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="avatar"><i class='bx bx-user'></i></div>
+                    <span id="display-user">Admin</span>
+                </div>
+                <button id="btn-logout" class="btn-icon" title="Sair">
+                    <i class='bx bx-log-out'></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <header class="topbar glass-panel">
+                <h1 id="page-title">Dashboard</h1>
+                <div class="topbar-actions">
+                    <span id="api-status-badge" class="badge">Conectando...</span>
+                </div>
+            </header>
+
+            <div class="content-body" id="content-body">
+                <!-- Várias "Sub views" do App estarão aqui manipuladas pelo JS -->
+                
+                <!-- Sub View: Dashboard Home -->
+                <div id="sub-dashboard" class="sub-view active">
+                    <div class="welcome-card glass-panel padding-lg">
+                        <h2>Bem-vindo ao BNET IT Doc</h2>
+                        <p>Selecione uma categoria no menu lateral para listar e gerenciar ativos dinâmicos.</p>
+                        
+                        <div class="grid mt-4" style="grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
+                            <!-- Total Categorias (Old Card) -->
+                            <div class="stat-box glass-panel text-center" style="display:flex; flex-direction:column; justify-content:center;">
+                                <i class='bx bx-layer' style="font-size: 2.5rem; color: var(--primary);"></i>
+                                <h3 id="stat-categories" style="font-size: 2rem; margin: 0.5rem 0;">0</h3>
+                                <span style="font-size: 1.1rem;">Total de Categorias</span>
+                            </div>
+
+                            <!-- Categorias Stats -->
+                            <div class="glass-panel" style="padding: 1.5rem;">
+                                <h3><i class='bx bx-pie-chart-alt-2 text-primary'></i> Itens por Categoria</h3>
+                                <ul id="dashboard-category-counts" class="list-unstyled mt-3" style="max-height: 250px; overflow-y: auto;">
+                                    <li>Carregando...</li>
+                                </ul>
+                            </div>
+
+                            <!-- Últimos Itens -->
+                            <div class="glass-panel" style="padding: 1.5rem;">
+                                <h3><i class='bx bx-time text-primary'></i> Últimos Modificados</h3>
+                                <div class="table-container mt-3" style="max-height: 250px; overflow-y: auto;">
+                                    <table class="data-table" style="font-size: 0.9rem;">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Categoria</th>
+                                                <th>Atualizado em</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dashboard-recent-items">
+                                            <tr><td colspan="3" class="text-center">Carregando...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub View: Categories Manager -->
+                <div id="sub-categories-manager" class="sub-view hidden">
+                    <div class="toolbar flex-between mb-4">
+                        <h2>Gerenciamento de Categorias</h2>
+                        <div style="display:flex; gap:1rem; align-items:center;">
+                            <div class="input-icon" style="margin-bottom:0; min-width: 250px;">
+                                <i class='bx bx-search'></i>
+                                <input type="text" id="search-categories" placeholder="Pesquisar categoria..." oninput="app.ui.filterCategories(this.value)">
+                            </div>
+                            <button class="btn btn-primary" onclick="app.ui.showModal('modal-create-category')">
+                                <i class='bx bx-plus'></i> Nova Categoria
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container glass-panel">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="cursor:pointer; user-select:none;" onclick="app.ui.sortCategories('id')">Cód. <i class='bx bx-sort' id="sort-icon-cat-id"></i></th>
+                                    <th style="cursor:pointer; user-select:none;" onclick="app.ui.sortCategories('name')">Nome <i class='bx bx-sort' id="sort-icon-cat-name"></i></th>
+                                    <th>Ordem</th>
+                                    <th>Atributos</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-categories-body">
+                                <tr><td colspan="4" class="text-center">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sub View: Modification Logs -->
+                <div id="sub-mod-logs" class="sub-view hidden">
+                    <div class="toolbar flex-between mb-4">
+                        <h2>Logs de Modificações (Últimas 100)</h2>
+                        <button class="btn btn-secondary" onclick="app.loadModificationLogs()">
+                            <i class='bx bx-refresh'></i> Atualizar
+                        </button>
+                    </div>
+                    
+                    <div class="table-container glass-panel">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Data / Hora</th>
+                                    <th>Usuário</th>
+                                    <th>Ação</th>
+                                    <th>Categoria</th>
+                                    <th>Item (ID)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-mod-logs-body">
+                                <tr><td colspan="5" class="text-center">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sub View: Entity List (Items) -->
+                <div id="sub-entities-list" class="sub-view hidden">
+                    <div class="toolbar flex-between mb-4">
+                        <h2 id="current-category-name">Itens</h2>
+                        <div style="display:flex; gap:1rem; align-items:center;">
+                            <div class="input-icon" style="margin-bottom:0; min-width: 250px;">
+                                <i class='bx bx-search'></i>
+                                <input type="text" id="search-items" placeholder="Pesquisar itens..." oninput="app.ui.filterItems(this.value)">
+                            </div>
+                            <button class="btn btn-primary" id="btn-new-entity">
+                                <i class='bx bx-plus'></i> Novo Item
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container glass-panel" style="overflow-x: auto;">
+                        <table class="data-table">
+                            <thead id="table-entities-head">
+                                <!-- Dynamic Heads -->
+                            </thead>
+                            <tbody id="table-entities-body">
+                                <tr><td class="text-center">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+
+                <!-- Sub View: Reports -->
+                <div id="sub-reports" class="sub-view hidden">
+                    <div class="toolbar flex-between mb-4 no-print">
+                        <h2>Gerador de Relatórios</h2>
+                    </div>
+                    
+                    <div class="report-controls glass-panel mb-4 no-print" style="padding: 1.5rem;">
+                        <form id="form-report" style="display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap;">
+                            <div class="input-group" style="margin-bottom: 0; flex: 2; min-width: 250px; max-width: 400px;">
+                                <label>Categoria</label>
+                                <select id="report-category-select">
+                                    <option value="ALL">Todas as Categorias</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding-bottom: 0.8rem; cursor: pointer;">
+                                <input type="checkbox" id="report-show-passwords" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);">
+                                <label for="report-show-passwords" style="margin: 0; cursor: pointer; color: var(--text-main); user-select: none;">Exibir Senhas em Texto</label>
+                            </div>
+                            <div style="margin-left: auto;">
+                                <button type="submit" class="btn btn-primary" id="btn-generate-report">
+                                    <i class='bx bx-printer'></i> Gerar A4 e Imprimir
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Canvas for HTML/PDF Printing -->
+                    <div id="report-canvas" class="report-canvas">
+                        <div class="report-header">
+                            <h1>IT Doc System - Relatório Geral</h1>
+                            <p id="report-timestamp"></p>
+                        </div>
+                        <div id="report-content">
+                            <!-- Injected generated tables -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </section>
+
+    <!-- Modals -->
+
+    <!-- Modal: Create Category -->
+    <div id="modal-create-category" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h3>Nova Categoria</h3>
+                <button class="btn-icon modal-close" onclick="app.ui.hideModal('modal-create-category')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-create-category">
+                    <div class="input-group">
+                        <label>Nome da Categoria</label>
+                        <input type="text" name="name" required placeholder="Ex: Servidores">
+                    </div>
+                    
+                    <h4>Atributos (Campos dinâmicos)</h4>
+                    <div id="attributes-list" class="mb-4">
+                        <!-- js injected rows -->
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm mb-4" id="btn-add-attr-row">
+                        <i class='bx bx-plus'></i> Adicionar Campo
+                    </button>
+
+                    <div class="flex-end mt-4">
+                        <button type="button" class="btn btn-secondary mr-2" onclick="app.ui.hideModal('modal-create-category')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Categoria</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Category -->
+    <div id="modal-edit-category" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h3>Editar Categoria</h3>
+                <button class="btn-icon modal-close" onclick="app.ui.hideModal('modal-edit-category')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-edit-category">
+                    <input type="hidden" id="edit-category-id" name="id">
+                    <div class="input-group">
+                        <label>Nome da Categoria</label>
+                        <input type="text" id="edit-category-name" name="name" required>
+                    </div>
+                    
+                    <h4>Atributos (Campos dinâmicos)</h4>
+                    <div id="edit-attributes-list" class="mb-4">
+                        <!-- js injected rows of EXISTING attributes -->
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary btn-sm mb-4" id="btn-add-edit-attr-row">
+                        <i class='bx bx-plus'></i> Adicionar Novo Campo
+                    </button>
+
+                    <div class="flex-end mt-4">
+                        <button type="button" class="btn btn-secondary mr-2" onclick="app.ui.hideModal('modal-edit-category')">Fechar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Nome e Novos Campos</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Dynamic Entity Form (Create/Edit) -->
+    <div id="modal-entity-form" class="modal-overlay hidden">
+        <div class="modal glass-panel" style="max-width: 85%; width: 850px;">
+            <div class="modal-header">
+                <h3 id="modal-entity-title">Novo Item</h3>
+                <button class="btn-icon modal-close" onclick="app.ui.hideModal('modal-entity-form')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-entity">
+                    <input type="hidden" id="edit-entity-id" name="id">
+                    <div id="dynamic-form-fields">
+                        <!-- js injects inputs based on EAV attributes -->
+                    </div>
+                    <div class="flex-end mt-4">
+                        <button type="button" class="btn btn-secondary mr-2" onclick="app.ui.hideModal('modal-entity-form')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: File Previewer -->
+    <div id="modal-preview" class="modal-overlay hidden">
+        <div class="modal glass-panel" style="max-width: 85%; width: 850px; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h3 id="modal-preview-title" style="flex:1; margin:0;">Visualização do Arquivo</h3>
+                <a href="#" id="modal-preview-download" class="btn btn-primary btn-sm mr-2 hidden" download><i class='bx bx-download'></i> Baixar</a>
+                <button class="btn-icon modal-close" onclick="app.ui.hideModal('modal-preview')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" id="modal-preview-body" style="flex: 1; display: block; text-align: center; overflow: auto; background: rgba(0,0,0,0.2); min-height: 350px; padding: 1.5rem;">
+                <!-- Injected preview content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm Delete -->
+    <div id="modal-confirm-delete" class="modal-overlay hidden">
+        <div class="modal glass-panel" style="max-width: 450px;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--danger);">
+                <h3 style="color: var(--danger);"><i class='bx bx-error'></i> Atenção! Ação Irreversível</h3>
+                <button class="btn-icon modal-close" onclick="app.ui.cancelConfirm()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body text-center" style="padding: 1.5rem;">
+                <p id="modal-confirm-message" style="margin-bottom: 1rem; font-size: 1.05rem;">
+                    A exclusão deste item acarretará na exclusão recursiva de todos os dados relacionados!
+                </p>
+                <div class="flex-center mt-4" style="gap: 1rem;">
+                    <button type="button" class="btn btn-danger" id="btn-confirm-yes" onclick="app.ui.executeConfirm()" style="flex: 1; padding: 0.8rem; display: flex; flex-direction: column; align-items: center; justify-content: center;" disabled>
+                        <span>Sim</span>
+                        <small style="font-size: 0.75rem; margin-top: 0.2rem; display: block; height: 14px;"><span id="confirm-timer-yes">5</span>s</small>
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btn-confirm-no" onclick="app.ui.cancelConfirm()" style="flex: 1; padding: 0.8rem; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <span>Não</span>
+                        <small style="font-size: 0.75rem; margin-top: 0.2rem; display: block; height: 14px;"><span id="confirm-timer-no">10</span>s</small>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Verify Password (Master) -->
+    <div id="modal-verify-password" class="modal-overlay hidden" style="z-index: 2000;">
+        <div class="modal glass-panel" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Desbloquear Cofre</h3>
+                <button class="btn-icon modal-close" onclick="app.ui.cancelVerifyPassword()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem; color: var(--text-muted);">Por segurança, digite a <b>Senha Mestra</b> do cofre.</p>
+                <form id="form-verify-password" onsubmit="app.ui.submitVerifyPassword(event)">
+                    <div class="input-group">
+                        <label>Senha Mestra</label>
+                        <input type="password" id="verify-password-input" required>
+                    </div>
+                    <div class="flex-end mt-4">
+                        <button type="button" class="btn btn-secondary mr-2" onclick="app.ui.cancelVerifyPassword()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Confirmar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Renew Session -->
+    <div id="modal-renew-session" class="modal-overlay hidden" style="z-index: 4000;">
+        <div class="modal glass-panel" style="max-width: 400px; text-align: center;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--warning);">
+                <h3 style="color: var(--warning);"><i class='bx bx-time-five'></i> Sessão Expirando</h3>
+                <button class="btn-icon modal-close" onclick="app.ui.hideModal('modal-renew-session')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <p style="margin-bottom: 1rem; font-size: 1.05rem;">
+                    Sua sessão irá expirar em menos de 1 minuto por inatividade.
+                </p>
+                <p style="margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                    Deseja renovar sua sessão para não perder as alterações não salvas?
+                </p>
+                <div class="flex-center mt-4" style="gap: 1rem;">
+                    <button type="button" class="btn btn-primary" onclick="app.renewSession()" style="flex: 1;">Renovar Sessão</button>
+                    <button type="button" class="btn btn-secondary" onclick="app.ui.hideModal('modal-renew-session')" style="flex: 1;">Ignorar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Setup Master Password -->
+    <div id="modal-setup-master-password" class="modal-overlay hidden" style="z-index: 3000;">
+        <div class="modal glass-panel" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 style="color: var(--primary);">Configurar Cofre de Senhas</h3>
+            </div>
+            <div class="modal-body">
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid var(--danger);">
+                    <p style="color: var(--text-main); font-size: 0.9rem; margin-bottom: 0.5rem;"><strong>Atenção ao risco de perda de dados:</strong></p>
+                    <p style="color: var(--text-muted); font-size: 0.85rem;">Esta é a Senha Mestra usada para criptografar todas as senhas armazenadas no sistema. <strong>Se você a perder, não haverá como recuperar as senhas salvas.</strong></p>
+                </div>
+                <form id="form-setup-master-password" onsubmit="app.ui.submitSetupMasterPassword(event)">
+                    <div class="input-group">
+                        <label>Crie uma Senha Mestra forte</label>
+                        <input type="password" id="setup-master-password-input" required>
+                    </div>
+                    <div class="flex-end mt-4">
+                        <button type="submit" class="btn btn-primary btn-block">Definir Senha Mestra</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Change Master Password -->
+    <div id="modal-change-master-password" class="modal-overlay hidden" style="z-index: 2500;">
+        <div class="modal glass-panel" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Alterar Senha Mestra</h3>
+                <button class="btn-icon modal-close" onclick="app.ui.hideModal('modal-change-master-password')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-muted);">Isto irá re-criptografar todos os itens cadastrados com a nova senha.</p>
+                <form id="form-change-master-password" onsubmit="app.ui.submitChangeMasterPassword(event)">
+                    <div class="input-group">
+                        <label>Senha Mestra Atual</label>
+                        <input type="password" id="change-old-password" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Nova Senha Mestra</label>
+                        <input type="password" id="change-new-password" required>
+                    </div>
+                    <div class="flex-end mt-4">
+                        <button type="button" class="btn btn-secondary mr-2" onclick="app.ui.hideModal('modal-change-master-password')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Alterar e Migrar Dados</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
