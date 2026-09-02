@@ -4,6 +4,8 @@ Este é um sistema autohospedado robusto e de alto desempenho projetado para ger
 
 A segurança é integrada diretamente com o **Active Directory (AD)** via autenticação LDAP, protegida por limites de taxa (Rate Limiting) e Tokens JWT. Além disso, o sistema conta com um **Cofre de Senhas Criptografadas** protegido por uma Master Password.
 
+<img width="1916" height="880" alt="image" src="https://github.com/user-attachments/assets/deea13db-ec7b-4330-9e1e-0b9ca0eccc47" />
+
 ---
 
 ## 🚀 Tecnologias Utilizadas
