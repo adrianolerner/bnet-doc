@@ -1,0 +1,2 @@
+# bnet-doc
+Este é um sistema autohospedado robusto e de alto desempenho projetado para gerenciar e documentar informações de TI de forma totalmente dinâmica. Ele utiliza a arquitetura **EAV (Entity-Attribute-Value)** para permitir que os administradores definam categorias personalizadas (ex: *Servidores, Switches, IPs, Licenças*) e campos específicos para cada categoria sem requerer alterações no banco de dados.
